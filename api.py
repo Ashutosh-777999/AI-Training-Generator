@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from langchain_community.llms import Ollama
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 app = FastAPI()
-llm = Ollama(model="llama3.2:1b")
+llm = ChatGoogleGenerativeAI(model="gemini-pro")
 
 @app.get("/chat")
 def get_bot_response(message: str):
