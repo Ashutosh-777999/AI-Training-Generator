@@ -1,0 +1,40 @@
+AI Training Plan Generator
+
+Overview:-The AI Training Plan Generator is a robust backend and frontend integration project that leverages the Gemini AI model to curate personalized training curricula based on specific topics and skill levels. By combining the power of FastAPI for high-performance API services, LangChain for seamless LLM integration, and a containerized infrastructure, this project provides a scalable foundation for automated educational content generation.
+
+Project Structure:-
+The repository is organized to separate business logic from interface implementation:
+1.ai_engine.py: Contains the core logic for communicating with the Gemini model using LangChain to generate training content.
+2.main.py: Serves as the FastAPI application entry point, exposing endpoints like /get-plan and /generate-plan to trigger the AI generation process.
+3.api.py: Functions as an additional interface layer for handling API requests.
+4.requirements.txt: Lists all necessary dependencies, including fastapi, uvicorn, langchain, and google-generativeai. 
+5.Dockerfile: Defines the container environment, ensuring the application runs consistently across different operating systems by packaging the Python runtime and dependencies.  
+6.tempCodeRunnerFile.py: A transient file generated during development that manages execution tasks for the interface. 
+
+Key Features:-
+1.Automated Curriculum Design: Dynamically generates detailed study paths for any given subject. 
+2.Scalable API Architecture: Built using FastAPI, enabling asynchronous processing and easy integration into larger systems. 
+3.Simplified Deployment: Full Docker support allows for deployment in any container-compatible environment with a single command.  
+4.Modern AI Integration: Utilizes gemini-2.5-flash to deliver high-quality, relevant training content through the LangChain framework. 
+
+Getting Started:-
+
+Prerequisites:
+1.Python 3.11 or higher installed on your system.
+2.Docker installed (optional, for containerized usage).
+3.A valid Google AI API key. 
+
+Core Architecture and Logic Flow:-
+
+The project is designed to bridge the gap between user input and Large Language Model (LLM) processing through a structured API architecture.
+1.AI Engine (ai_engine.py): This serves as the foundation of your application's logic. It utilizes the ChatGoogleGenerativeAI class from the langchain-google-genai library to interface with the gemini-2.5-flash model. The generate_training_plan function abstracts the prompt engineering process, taking a user-defined topic and level to request structured output from the AI.  
+2.API Layer (main.py & api.py): These files act as the communication hub. By using FastAPI, the project exposes endpoints that allow external applications to interact with the underlying AI engine. When an HTTP request is made to an endpoint like /get-plan, it triggers the backend logic, processes the request through the ai_engine.py script, and returns the AI-generated curriculum as a JSON response. 
+3. Containerization (Dockerfile): This file ensures environmental consistency. It defines a lightweight Python 3.11 environment, installs necessary dependencies from requirements.txt (such as fastapi, uvicorn, and langchain), and automates the execution of the API server. 
+
+The Interaction LifecycleRequest:-
+Initiation: A user sends a GET or POST request to the API with a target topic and level. 
+Processing: The main.py file captures the request and passes the parameters to the generate_training_plan function located in ai_engine.py. 
+LLM Execution: The ai_engine.py script formats these parameters into a prompt for the gemini-2.5-flash model.  
+Response Delivery: The AI generates the content, which is then serialized into a JSON format and returned to the user via the FastAPI endpoint. 
+
+This modular approach ensures that you can update the AI model or expand the API functionality without needing to rewrite the entire codebase. 
