@@ -1,16 +1,23 @@
-from turtle import st
-
 from fastapi import FastAPI
-from langchain_google_genai import ChatGoogleGenerativeAI
-import uvicorn
+from ai_engine import generate_learning_package
 
 app = FastAPI()
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="AQ.Ab8RN6InLjCTHLdS9UOMh0g87eBToDhLKb5aq61oUqo43hoqhg")
 
-@app.post("/generate-plan")
-async def get_plan(topic: str, level: str):
-    response = llm.invoke(f"Create a plan for {topic} at {level} level")
-    return {"plan": response.content}
+# Part C: Simple Session Tracking (In-memory)
+user_progress = {}
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.post("/get-custom-practice")
+async def get_journey(user_id: str, topic: str, level: str):
+    # Fetch content
+    data = generate_learning_package(topic, level)
+    
+    # Update progress
+    if user_id not in user_progress:
+        user_progress[user_id] = []
+    user_progress[user_id].append({"topic": topic, "status": "completed"})
+    
+    return {
+        "status": "success",
+        "journey_step": len(user_progress[user_id]),
+        "learning_content": data
+    }
