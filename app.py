@@ -2,6 +2,7 @@ import streamlit as st
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="AQ.Ab8RN6InLjCTHLdS9UOMh0g87eBToDhLKb5aq61oUqo43hoqhg")
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key="AQ.Ab8RN6Iw2iydQVUGpe17BtqORp2caZrDU-r9JqONPmObszVU9g")
 st.title("⚡Fast learning plan generator for any topic!")
 
 api_key = st.sidebar.text_input("Enter Google Gemini API Key:", type="password")
