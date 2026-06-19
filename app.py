@@ -39,8 +39,7 @@ if st.button("Search Training Levels 🔍"):
         st.session_state.topic = topic_input
         st.session_state.final_plan = ""
         
-        # Using gemini-1.5-flash for ultra-fast replies
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
         prompt = f"Provide 3 simple learning levels (Beginner, Intermediate, Advanced) for learning {topic_input}. Respond ONLY in {selected_language} language. Keep it brief and to the point."
         
         with st.spinner("Fetching latest data... Please wait..."):
