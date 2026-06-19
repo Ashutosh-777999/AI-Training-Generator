@@ -1,51 +1,74 @@
 import streamlit as st
-import requests
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Page Title
-st.set_page_config(page_title="Educator Work Companion", layout="wide")
-st.title("🎓 Educator Work Companion Agent")
+# 1. Page configuration for a better web app UI
+st.set_page_config(page_title="Fast AI Training Generator", page_icon="⚡", layout="centered")
 
-# Sidebar for API Key (Secure Input)
+st.title("⚡ Fast AI Training Plan Generator")
+
+# 2. Sidebar Settings
+st.sidebar.header("🔑 Settings")
+api_key = st.sidebar.text_input("Enter Google Gemini API Key:", type="password")
+st.sidebar.markdown("[👉 Get your Free API Key Here](https://aistudio.google.com/app/apikey)")
+
 st.sidebar.markdown("---")
-st.sidebar.info("Don't have an API Key? [Get one here](https://aistudio.google.com/app/apikey)")
-api_key = st.sidebar.text_input("Enter your Google Gemini API Key", type="password")
-
-language = st.selectbox("Select Language:", 
-                        ["English", "Hindi", "Odia", "Kannada", "Telugu"])
-
-# Topic & Level Inputs
-topic = st.text_input("Enter the topic you want to learn:")
-level = st.selectbox("Select your skill level:", ["Beginner", "Intermediate", "Advanced"])
-
-# app.py mein ye badlav karein
-if st.button("Generate Learning Plan"):
-    if not api_key:
-        st.error("Please enter your API Key.")
-    else:
-        headers = {"user-id": "ashutosh_123", "language": language}
-        try:
-            # Server ko request tabhi jayegi jab button dabaya jayega
-            response = requests.post(
-                "http://localhost:8000/get-custom-practice",
-                params={"topic": topic, "level": level},
-                headers=headers
-            )
-            if response.status_code == 200:
-                st.write(response.json())
-            else:
-                st.error(f"Error: Server responded with {response.status_code}")
-        except Exception as e:
-            st.error("Backend server is not running. Please start api.py first.")
-
-
-headers = {
-    "user-id": "ashutosh_123", # Ye string zaroor honi chahiye
-    "language": language
-}
-
-# Request call karte waqt:
-response = requests.post(
-    "http://localhost:8000/get-custom-practice", 
-    params={"topic": topic, "level": level},
-    headers=headers # Ye headers pass karna compulsory hai
+selected_language = st.sidebar.selectbox(
+    "Select Output Language:", 
+    ["English", "Hindi", "Telugu", "Odia", "Spanish", "French"]
 )
+
+# 3. Session State Initialization (so data doesn't disappear on web reload)
+if "topic" not in st.session_state:
+    st.session_state.topic = ""
+if "levels_text" not in st.session_state:
+    st.session_state.levels_text = ""
+if "final_plan" not in st.session_state:
+    st.session_state.final_plan = ""
+
+# 4. Main Input Area
+topic_input = st.text_input(
+    "What do you want to learn? (e.g., Agentic AI, LangChain, Python)", 
+    placeholder="Type a technology or subject here..."
+)
+
+# 5. Search Levels Button
+if st.button("Search Training Levels 🔍"):
+    if not api_key:
+        st.error("Please enter your Google Gemini API Key in the sidebar first!")
+    elif topic_input:
+        st.session_state.topic = topic_input
+        st.session_state.final_plan = ""
+        
+        # Using gemini-1.5-flash for ultra-fast replies
+        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+        prompt = f"Provide 3 simple learning levels (Beginner, Intermediate, Advanced) for learning {topic_input}. Respond ONLY in {selected_language} language. Keep it brief and to the point."
+        
+        with st.spinner("Fetching latest data... Please wait..."):
+            # Streaming ensures the user sees the reply immediately without waiting
+            response_stream = llm.stream(prompt)
+            st.session_state.levels_text = st.write_stream(response_stream)
+    else:
+        st.warning("Please enter a topic/technology name to proceed.")
+
+st.markdown("---")
+
+# 6. Generate Final Plan Section
+if st.session_state.levels_text:
+    selected_level = st.selectbox("Which level do you want to start from?", ["Beginner", "Intermediate", "Advanced"])
+    
+    if st.button("Generate My Training Plan 🚀"):
+        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+        
+        # Upgraded prompt to fetch modern, up-to-date, real-world tasks
+        plan_prompt = f"""Act as an expert technical trainer. Create a highly detailed, up-to-date, step-by-step training plan to learn {st.session_state.topic} at a {selected_level} level. 
+        Include:
+        - Daily tasks and timelines
+        - Modern tools and current industry standards
+        - Real-world project ideas
+        You MUST respond completely in {selected_language} language. Use clean Markdown formatting."""
+        
+        st.markdown(f"### 🎯 Your Comprehensive {selected_level} Training Plan for {st.session_state.topic}:")
+        
+        with st.spinner("Generating your fast and updated plan..."):
+            response_stream = llm.stream(plan_prompt)
+            st.session_state.final_plan = st.write_stream(response_stream)
