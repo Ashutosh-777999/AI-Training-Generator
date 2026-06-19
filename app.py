@@ -56,7 +56,7 @@ if st.session_state.levels_text:
     selected_level = st.selectbox("Which level do you want to start from?", ["Beginner", "Intermediate", "Advanced"])
     
     if st.button("Generate My Training Plan 🚀"):
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
         
         # Upgraded prompt to fetch modern, up-to-date, real-world tasks
         plan_prompt = f"""Act as an expert technical trainer. Create a highly detailed, up-to-date, step-by-step training plan to learn {st.session_state.topic} at a {selected_level} level. 
