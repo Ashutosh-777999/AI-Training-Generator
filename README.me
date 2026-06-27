@@ -1,5 +1,7 @@
-AI Training Plan Generator
+AI Training Plan & Journey Generator:-
 
+
+This project is a multi-interface application designed to generate structured, real-world learning paths and manage training tracking using Google Gemini AI models via LangChain. It provides both a web UI (Streamlit) and API endpoints (FastAPI) to handle training generations and session tracking.
 Overview:-The AI Training Plan Generator is a robust backend and frontend integration project that leverages the Gemini AI model to curate personalized training curricula based on specific topics and skill levels. By combining the power of FastAPI for high-performance API services, LangChain for seamless LLM integration, and a containerized infrastructure, this project provides a scalable foundation for automated educational content generation.
 
 Project Structure:-
@@ -40,9 +42,7 @@ Response Delivery: The AI generates the content, which is then serialized into a
 This modular approach ensures that you can update the AI model or expand the API functionality without needing to rewrite the entire codebase. 
 
 
-AI Training Plan & Journey Generator:-
-
-This project is a multi-interface application designed to generate structured, real-world learning paths and manage training tracking using Google Gemini AI models via LangChain. It provides both a web UI (Streamlit) and API endpoints (FastAPI) to handle training generations and session tracking.🚀 FeaturesFast API endpoints: Built with FastAPI for high-performance route handling.Interactive Web UI: A frontend interface powered by Streamlit to generate localized learning levels and granular day-by-day training plans.Multi-language Support: Generate technical plans in English, Hindi, Telugu, Odia, Spanish, or French.
+🚀 FeaturesFast API endpoints: Built with FastAPI for high-performance route handling.Interactive Web UI: A frontend interface powered by Streamlit to generate localized learning levels and granular day-by-day training plans.Multi-language Support: Generate technical plans in English, Hindi, Telugu, Odia, Spanish, or French.
 In-Memory Session Tracking: Basic state-saving mock mechanisms to append user journey steps.Docker Ready: Complete containerization setup for quick deployment.📂 Project Architecture Overviewapp.py: The frontend UI script using Streamlit. Handles user API keys, language toggles, interactive level previews, and full markdown rendering.ai_engine.py: House for foundational LLM initialization and core prompt execution with gemini-2.5-flash.main.py: The system coordinator. Runs a FastAPI backend gateway and dynamically initiates the Streamlit engine sub-process.api.py: Implements a specialized tracking endpoint (/get-custom-practice) storing user session states in an in-memory repository.Dockerfile & requirements.txt: Environment configurations and dependency lockfiles for production alignment.  🛠️ Installation & SetupPrerequisitesPython 3.11+   A Google Gemini API Key (Can be generated via Google AI Studio)Local SetupClone the repository and navigate to the project directory:Bashgit clone <your-repository-url>
 cd <project-folder-name>
 Install the required dependencies:Bashpip install -r requirements.txt
