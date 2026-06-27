@@ -38,3 +38,22 @@ LLM Execution: The ai_engine.py script formats these parameters into a prompt fo
 Response Delivery: The AI generates the content, which is then serialized into a JSON format and returned to the user via the FastAPI endpoint. 
 
 This modular approach ensures that you can update the AI model or expand the API functionality without needing to rewrite the entire codebase. 
+
+
+AI Training Plan & Journey Generator:-
+
+This project is a multi-interface application designed to generate structured, real-world learning paths and manage training tracking using Google Gemini AI models via LangChain. It provides both a web UI (Streamlit) and API endpoints (FastAPI) to handle training generations and session tracking.🚀 FeaturesFast API endpoints: Built with FastAPI for high-performance route handling.Interactive Web UI: A frontend interface powered by Streamlit to generate localized learning levels and granular day-by-day training plans.Multi-language Support: Generate technical plans in English, Hindi, Telugu, Odia, Spanish, or French.
+In-Memory Session Tracking: Basic state-saving mock mechanisms to append user journey steps.Docker Ready: Complete containerization setup for quick deployment.📂 Project Architecture Overviewapp.py: The frontend UI script using Streamlit. Handles user API keys, language toggles, interactive level previews, and full markdown rendering.ai_engine.py: House for foundational LLM initialization and core prompt execution with gemini-2.5-flash.main.py: The system coordinator. Runs a FastAPI backend gateway and dynamically initiates the Streamlit engine sub-process.api.py: Implements a specialized tracking endpoint (/get-custom-practice) storing user session states in an in-memory repository.Dockerfile & requirements.txt: Environment configurations and dependency lockfiles for production alignment.  🛠️ Installation & SetupPrerequisitesPython 3.11+   A Google Gemini API Key (Can be generated via Google AI Studio)Local SetupClone the repository and navigate to the project directory:Bashgit clone <your-repository-url>
+cd <project-folder-name>
+Install the required dependencies:Bashpip install -r requirements.txt
+Environment Variables:Create a .env file in the root directory to store your credentials (optional, as the Streamlit app allows text inputs directly):Code snippetGOOGLE_API_KEY=your_actual_api_key_here
+💻 How to RunMethod 1: Running via Main ControllerExecuting main.py kicks off the main gateway and automatically orchestrates the Streamlit interface:Bashpython main.py
+Method 2: Running the Web App IndividuallyIf you want to view the interactive frontend directly:Bashstreamlit run app.py
+Method 3: Running the Core API EndpointsTo serve backend endpoints individually (such as the main plan fetcher or session tracker):Bashuvicorn ai_engine:app --reload --port 8000
+# OR for the session tracker
+uvicorn api.py:app --reload --port 8001
+🐳 Containerization with DockerYou can package and execute the entire service within an isolated container environment using the provided Dockerfile:  Build the Docker Image:Bashdocker build -t ai-training-agent .
+Run the Container:Bashdocker run -p 8000:8000 ai-training-agent
+📡 API Reference:-
+1. Get Plan (ai_engine.py)URL: /generate-planMethod: POSTQuery Parameters: topic (string), level (string)
+2. Custom Practice Tracking (api.py)URL: /get-custom-practiceMethod: POSTQuery Parameters: user_id (string), topic (string), level (string)
