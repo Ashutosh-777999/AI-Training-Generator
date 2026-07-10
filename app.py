@@ -1,15 +1,30 @@
 import sys
 import asyncio
+import base64
+import os
 
 # 🔴 FIX: Streamlit ଇମ୍ପୋର୍ଟ ହେବା ପୂର୍ବରୁ ଏହାକୁ ରଖନ୍ତୁ (Windows Error ଫିକ୍ସ)
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import streamlit as st
+
+# ପେଜ୍ କନଫିଗ୍ ରେ ବଟ୍ ର ନାମ ଏବଂ Tech Mahindra ଲୋଗୋ ଯୋଡନ୍ତୁ
+st.set_page_config(
+    page_title="TM Knowledge Bot", 
+    page_icon="🏢", # ଏଠାରେ ଆପଣ ଟେକ୍ ମହିନ୍ଦ୍ରା ଲୋଗୋର ଇମେଜ୍ ପାଥ୍ (ଯେପରିକି "logo.png") ଦେଇପାରିବେ
+    layout="wide"
+)
+
+# ମେନ୍ ଟାଇଟଲ୍ ଅପଡେଟ୍
+st.title("TM Knowledge Bot")
+st.markdown("Welcome to TM Knowledge Bot. Let's start your training journey!")
+
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 import db_manager
-
+import smtplib
+from email.mime.text import MIMEText
 # Initialize the database on startup
 db_manager.init_db()
 
@@ -40,9 +55,12 @@ def create_file(title, text_content):
     return content.encode('utf-8')
 
 # --- ADVANCED CSS ---
+# 🔴 FIX: 'span' ଏବଂ 'div' କୁ ଏଥିରୁ ହଟାଇ ଦିଆଯାଇଛି ଯାହାଦ୍ୱାରା Icon ଗୁଡିକ ଠିକ୍ ଭାବରେ ଦେଖାଯିବ!
 common_css = """
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-    .stApp, div, span, p, h1, h2, h3, h4, label, button { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+    
+    .stApp, p, h1, h2, h3, h4, label, li { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+    
     .gemini-greeting {
         background: linear-gradient(300deg, #4285f4, #9b72cb, #d96570, #f39c12);
         background-size: 240% 240%;
@@ -61,7 +79,8 @@ common_css = """
     .stChatInputContainer:focus-within { border-color: #4285f4 !important; box-shadow: 0 8px 32px rgba(66, 133, 244, 0.15) !important; }
     .stButton>button { border-radius: 12px !important; transition: all 0.25s ease !important; font-weight: 600 !important; }
     .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
-    footer, #MainMenu, [data-testid="stHeader"] { display: none !important; }
+    footer, #MainMenu { display: none !important; }
+    [data-testid="stHeader"] { background-color: transparent !important; }
 """
 
 if st.session_state.theme == "Light ☀️":
@@ -72,8 +91,24 @@ st.markdown(theme_css, unsafe_allow_html=True)
 
 # --- Sidebar ---
 with st.sidebar:
+    # Tech Mahindra Logo Logic (Base64)
+    logo_path = "logo.png"
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        st.markdown(
+            f"""
+            <div style="background-color: #FFFFFF; padding: 15px; border-radius: 12px; margin-bottom: 25px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <img src="data:image/png;base64,{encoded_string}" width="160">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.error("⚠️ Please add 'logo.png' to your folder!")
+
     st.markdown("### 🤖 Bot Mode")
-    # 🔴 ନୂଆ ଫିଚର୍: Mode Selection 
     app_mode = st.radio("Select Mode:", ["💬 Casual Chat", "📚 Study Masterclass"], key="app_mode", label_visibility="collapsed")
     
     st.markdown("---")
@@ -124,7 +159,6 @@ with st.sidebar:
 # --- Main Interface ---
 if not st.session_state.chat_history and st.session_state.current_session_id is None:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
-    st.markdown("<h1 class='gemini-greeting'>Hello there.</h1>", unsafe_allow_html=True)
     if st.session_state.app_mode == "💬 Casual Chat":
         st.markdown(f"<h3 style='color: {'#737B8B' if st.session_state.theme == 'Light ☀️' else '#8B949E'}; font-weight: 400; letter-spacing: 0.5px;'>Let's chat! I'm here to talk about anything.</h3>", unsafe_allow_html=True)
     else:
@@ -137,7 +171,7 @@ for msg in st.session_state.chat_history:
     with st.chat_message(role, avatar=avatar_icon):
         st.markdown(msg.content)
 
-# ଡାଉନଲୋଡ୍ ବଟନ୍ ବିଭାଗ (କେବଳ Study Mode ରେ ଦେଖାଯିବ)
+# ଡାଉନଲୋଡ୍ ବଟନ୍ ବିଭାଗ
 if st.session_state.app_mode == "📚 Study Masterclass" and st.session_state.stage in ["quiz_evaluation", "completion"] and st.session_state.current_session_id:
     st.markdown("### 📥 Download Your Materials")
     col_a, col_b = st.columns(2)
@@ -178,9 +212,18 @@ if st.session_state.app_mode == "📚 Study Masterclass" and st.session_state.st
                 use_container_width=True
             )
 
-# Input Box ର Placeholder ଟେକ୍ସଟ୍ ମୋଡ୍ ଅନୁସାରେ ବଦଳିବ
 input_placeholder = "Ask anything..." if st.session_state.app_mode == "💬 Casual Chat" else "Enter a topic (e.g., Python, SQL)..."
-user_input = st.chat_input(input_placeholder, key="main_chat_input")
+# app.py ରେ ୟୁଜର ଇନପୁଟ୍ ଚେକ୍
+user_input = st.chat_input("Ask anything or enter a serial number...")
+
+if user_input:
+    if user_input.strip() in ["1", "2", "3"]:
+        st.session_state.selected_plan = user_input
+        st.chat_message("assistant").write(f"You have selected Option {user_input}. Generating your detailed study plan...")
+        # ଏଠାରେ study plan generate କରିବାର ଫଙ୍କସନ୍ କଲ୍ କରନ୍ତୁ
+    else:
+        # ନର୍ମାଲ୍ ଚାଟ୍ ଲଜିକ୍
+        pass
 
 if user_input:
     
@@ -200,7 +243,9 @@ if user_input:
         with st.spinner("Thinking..."):
             
             try:
-                # 🔴 ମୋଡ୍ ୧: Casual Chat (ଗପସପ)
+                # ---------------------------------------------------------
+                # 🔴 ମୋଡ୍ ୧: Casual Chat
+                # ---------------------------------------------------------
                 if st.session_state.app_mode == "💬 Casual Chat":
                     chat_prompt = f"""
                     You are a friendly, conversational AI companion.
@@ -211,7 +256,9 @@ if user_input:
                     response = llm.invoke(chat_prompt)
                     st.markdown(response.content)
 
-                # 🔴 ମୋଡ୍ ୨: Study Masterclass (ପାଠପଢା)
+                # ---------------------------------------------------------
+                # 🔴 ମୋଡ୍ ୨: Study Masterclass
+                # ---------------------------------------------------------
                 else:
                     persona_instruction = f"""
                     You are an advanced AI Master Tutor. 
@@ -221,9 +268,6 @@ if user_input:
                     3. Keep your response clean and well-formatted.
                     """
                     
-                    # ---------------------------------------------------------
-                    # STAGE 0: Topic Selection -> Generate 3 Bullet Point Levels
-                    # ---------------------------------------------------------
                     if st.session_state.stage == "topic_selection":
                         prompt = f"""
                         The user wants to learn about: '{user_input}'.
@@ -232,43 +276,53 @@ if user_input:
                         YOUR TASK:
                         1. Provide a short introduction to the topic.
                         2. Explain what they will learn at 3 different levels. 
-                        3. YOU MUST FORMAT THE LEVELS AS A BULLETED LIST. Put each level on a new line with a 2-sentence explanation. Use this exact format:
-                           * **Beginner Level:** [Your explanation here]
-                           * **Intermediate Level:** [Your explanation here]
-                           * **Advanced Level:** [Your explanation here]
-                        4. End your response EXACTLY with this question: "Which level or levels would you like to study?"
+                        3. YOU MUST FORMAT THE LEVELS AS A MARKDOWN TABLE exactly like this:
+                        
+                        | **Level** | **What you will learn** |
+                        | --- | --- |
+                        | **Beginner Level** | [Write a 2-sentence explanation here] |
+                        | **Intermediate Level** | [Write a 2-sentence explanation here] |
+                        | **Advanced Level** | [Write a 2-sentence explanation here] |
+                        
+                        4. End your response EXACTLY with a new line saying: "Which level or levels would you like to study?" Add the exact tag [LEARN] at the end of your message.
                         """
                         response = llm.invoke(prompt)
-                        st.markdown(response.content)
-                        st.session_state.stage = "level_selection"
+                        reply_text = response.content
+                        
+                        if "[LEARN]" in reply_text or "Beginner Level" in reply_text or "Intermediate Level" in reply_text:
+                            st.session_state.stage = "level_selection"
+                            reply_text = reply_text.replace("[LEARN]", "").strip() 
+                        else:
+                            reply_text = reply_text.replace("[LEARN]", "").strip()
+                            
+                        st.markdown(reply_text)
+                        response.content = reply_text
 
-                    # ---------------------------------------------------------
-                    # STAGE 1: Level Selected -> Provide Schedule ONLY
-                    # ---------------------------------------------------------
                     elif st.session_state.stage == "level_selection":
-                        prompt = f"""
-                        Topic: '{st.session_state.topic}'. 
-                        Levels chosen: '{user_input}'.
-                        {persona_instruction}
-                        
-                        YOUR TASK:
-                        Create a Study Schedule. YOU MUST USE BULLET POINTS AND LINE BREAKS.
-                        Format exactly like this:
-                        
-                        * 📅 **Total Days:** [Your answer]
-                        * ⏰ **Study Time:** [Your answer]
-                        * ☕ **Break Schedule:** [Your answer]
-                        
-                        DO NOT EXPLAIN THE TOPIC YET.
-                        End EXACTLY with a new line saying: "Please reply 'Start' whenever you are ready to begin the lesson."
-                        """
-                        response = llm.invoke(prompt)
-                        st.markdown(response.content)
-                        st.session_state.stage = "wait_for_start"
+                            prompt = f"""
+                            Topic: '{st.session_state.topic}'. 
+                            Levels chosen: '{user_input}'.
+                            {persona_instruction}
+                            
+                            YOUR TASK:
+    Create a detailed Study Schedule. 
+    Ensure that the daily study schedule covers exactly 4 to 5 hours of actual study time per day.
+    You MUST include a specific break time for each day within the schedule.
+    
+    You MUST format the output entirely as a Markdown table so it is easy for the user to read at a glance.
+    Use EXACTLY the following columns:
+    | Day | Study Schedule | Break Time | Total Study Hours | Topic to Cover |
+    
+    Example format:
+    | Day 1 (Monday) | 10:00 AM - 12:00 PM, 01:00 PM - 03:00 PM | 12:00 PM - 01:00 PM (1 Hour) | 4 Hours | Introduction to {st.session_state.topic} |
+    | Day 2 (Tuesday)| 09:00 AM - 12:00 PM, 01:00 PM - 03:00 PM | 12:00 PM - 01:00 PM (1 Hour) | 5 Hours | Core Concepts |
+    DO NOT EXPLAIN THE TOPIC YET.
+    End EXACTLY with a new line saying: "Please reply 'Start' whenever you are ready to begin the lesson."
+    """
+                            response = llm.invoke(prompt)
+                            st.markdown(response.content)
+                            st.session_state.stage = "wait_for_start"
 
-                    # ---------------------------------------------------------
-                    # STAGE 2: User says "Start" -> DEEP EXPLANATION 
-                    # ---------------------------------------------------------
                     elif st.session_state.stage == "wait_for_start":
                         if any(word in user_input.lower() for word in ["start", "yes", "ok", "ready", "ହଁ", "ଆରମ୍ଭ"]):
                             prompt = f"""
@@ -289,9 +343,6 @@ if user_input:
                             response = llm.invoke(prompt)
                         st.markdown(response.content)
 
-                    # ---------------------------------------------------------
-                    # STAGE 3: User says "Quiz" -> Generate MCQs
-                    # ---------------------------------------------------------
                     elif st.session_state.stage == "wait_for_quiz":
                         if any(word in user_input.lower() for word in ["quiz", "test", "yes", "ok", "ready"]):
                             prompt = f"""
@@ -309,9 +360,6 @@ if user_input:
                             response = llm.invoke(prompt)
                         st.markdown(response.content)
                         
-                    # ---------------------------------------------------------
-                    # STAGE 4: Evaluate Quiz -> Finish
-                    # ---------------------------------------------------------
                     elif st.session_state.stage == "quiz_evaluation":
                         prompt = f"""
                         The user answered the quiz with: '{user_input}'.
@@ -324,18 +372,76 @@ if user_input:
                         st.markdown(response.content)
                         st.session_state.stage = "completion"
                         
-                    # ---------------------------------------------------------
-                    # STAGE 5: Completion State
-                    # ---------------------------------------------------------
                     elif st.session_state.stage == "completion":
                         prompt = f"Chat naturally: '🎉 You did an amazing job! Download your notes below, or click **Start New Journey** in the sidebar for a new topic.' {persona_instruction}"
                         response = llm.invoke(prompt)
                         st.markdown(response.content)
                 
-                # ଉଭୟ ମୋଡ୍ ପାଇଁ ଇତିହାସ (History) ସେଭ୍ ହେବ
                 st.session_state.chat_history.append(AIMessage(content=response.content))
                 db_manager.save_message(st.session_state.current_session_id, "assistant", response.content)
 
             except Exception as e:
                 st.error(f"⚠️ Engine Error: {str(e)}\n\n(Ensure your local AI engine is running in the terminal.)")
                 st.session_state.chat_history.pop()
+
+
+def send_training_email(user_email, name, timing):
+    sender = "your_email@domain.com"
+    password = "your_app_password" # ଆପଣଙ୍କ ପାସୱାର୍ଡ ଦିଅନ୍ତୁ
+    
+    body = f"Hello {name},\n\nYou have been allocated for the training on {timing}. A mail has been sent to confirm this allocation.\n\nBest Regards,\nTM Knowledge Bot"
+    msg = MIMEText(body)
+    msg['Subject'] = 'Training Allocation Confirmed'
+    msg['From'] = sender
+    msg['To'] = user_email
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender, password)
+            server.sendmail(sender, [user_email], msg.as_string())
+        return True
+    except Exception as e:
+        print("Email sending failed:", e)
+        return False
+
+# app.py 
+# if user_agreed:
+#   send_training_email("user@example.com", "User", "Tomorrow 10 AM")
+#   st.chat_message("assistant").write("You have been allocated for this training. A mail has been sent to you with the details.")
+# ai_engine.py ରେ ପ୍ରମ୍ପ୍ଟ ମୋଡିଫାଏ କରନ୍ତୁ
+def get_level_presentation_prompt(topic):
+    return f"""
+    Generate a learning plan for '{topic}'.
+    You MUST output the levels strictly in a Markdown table format with the exact following columns:
+    | Serial Number | Level | What you will learn | Intended for | Prerequisites |
+
+    Provide 3 options:
+    1 - Beginner
+    2 - Intermediate
+    3 - Advanced
+
+    After providing the table, strictly ask the user: "Please reply with the Serial Number (1, 2, or 3) to select your training plan."
+    """
+# app.py ରେ କମ୍ପ୍ଲିସନ୍ ଷ୍ଟେଜ୍ ଲଜିକ୍
+if st.session_state.stage == "completion":
+    st.chat_message("assistant").write("Course completed! Let's do a quick assessment to generate your certificate.")
+    
+    # ଏଠାରେ LLM ମାଧ୍ୟମରେ ପ୍ରଶ୍ନ ପଚାରିବାର କୋଡ୍ ଲେଖନ୍ତୁ
+    # ଉଦାହରଣ ସ୍ୱରୂପ, ଯଦି ଆସେସମେଣ୍ଟ ପାସ୍ ହୁଏ:
+    assessment_passed = True # (ଆପଣଙ୍କ ଏଭାଲୁଏସନ୍ ଲଜିକ୍ ରୁ ଏହା ଆସିବ)
+    
+    if assessment_passed:
+        st.balloons()
+        st.success("Assessment Cleared Successfully!")
+        
+        # ସାର୍ଟିଫିକେଟ୍ ଡିଜାଇନ୍ (Markdown ବ୍ୟବହାର କରି)
+        certificate_html = """
+        <div style="border: 5px solid #2e86c1; padding: 20px; text-align: center; border-radius: 10px;">
+            <h1 style="color: #2e86c1;">Certificate of Completion</h1>
+            <p>This is to certify that</p>
+            <h2><b>Participant</b></h2>
+            <p>has successfully completed the training generated by</p>
+            <h3><b>TM Knowledge Bot</b></h3>
+        </div>
+        """
+        st.markdown(certificate_html, unsafe_allow_html=True)

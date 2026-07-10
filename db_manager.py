@@ -68,3 +68,32 @@ def delete_session(session_id):
     cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
     conn.commit()
     conn.close()
+
+def setup_training_db():
+    conn = sqlite3.connect('tm_bot_database.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS training_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_name TEXT,
+            contact_details TEXT,
+            training_topic TEXT,
+            agreed_date_time TEXT,
+            status TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def save_training_agreement(user_name, details, topic):
+    conn = sqlite3.connect('tm_bot_database.db')
+    cursor = conn.cursor()
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    cursor.execute('''
+        INSERT INTO training_records (user_name, contact_details, training_topic, agreed_date_time, status)
+        VALUES (?, ?, ?, ?, 'Training Allocated')
+    ''', (user_name, details, topic, current_time))
+    
+    conn.commit()
+    conn.close()

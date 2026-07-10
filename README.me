@@ -1,27 +1,59 @@
-AI Master Tutor & Training Agent:-
-An advanced, locally-hosted AI tutor and conversational agent built with Python. This project utilizes local Large Language Models (LLMs) via Ollama and LangChain to provide an interactive educational experience without relying on cloud APIs. It features a modern web interface built with Streamlit and a backend API powered by FastAPI. 
-🌟 Key Features:-
-Dual Operation Modes: Users can select between "💬 Casual Chat" for friendly conversations or "📚 Study Masterclass" for structured educational deep dives.  Structured Learning Paths: In Masterclass mode, the AI breaks topics down into Beginner, Intermediate, and Advanced levels.  Comprehensive Generation: Generates study schedules, detailed explanations with bullet points and code blocks, and multiple-choice quizzes (MCQs) for assessment.  Downloadable Study Materials: Users can generate and download their "Main Study Notes" and "MCQ Quiz Books" as Markdown (.md) files.  Session Management: Integrates an SQLite database to automatically save, load, and delete chat histories and study sessions.  Multilingual Support: Supports output in multiple languages, including English, Odia, Hindi, Bengali, and Spanish.  Theme Customization: Includes a toggle for Light ☀️ and Dark 🌙 UI themes.  FastAPI Backend: Provides API endpoints (e.g., /get-plan) to programmatically generate training plans.
-🛠️ Technology Stack:-
-Language: Python 3.11 / 3.13
-Frontend UI: Streamlit
-Backend API: FastAPI, Uvicorn 
-AI Engine: LangChain (ChatOllama) 
-Database: SQLite (sqlite3) 
-Containerization: Docker  
-📋 Prerequisites:-
-Before running this project, ensure you have the following installed:Python: Version 3.11 or higher.  Ollama: You must have Ollama installed and running on your local machine to process the AI requests.  Local Models: Pull the required models using your terminal:ollama run llama3.2:1b (Used for the fast Streamlit UI)  ollama run llama3 (Used for the FastAPI backend)
-🚀 Installation & Setup:-
-1. Clone the repository and navigate to the project directory.
-2. Create and activate a virtual environment:Bashpython -m venv .venv
-(Note: Use .venv\Scripts\activate on Windows or source .venv/bin/activate on macOS/Linux).  
-3. Install the required dependencies:Bashpip install fastapi uvicorn langchain-community streamlit pysqlite3
-  💻 UsageThis project consists of two main entry points: the graphical user interface and the API.Running the Streamlit Web UITo launch the interactive AI Master Tutor interface, run:Bashstreamlit run app.py
-  
-Note for Windows users: The app.py file includes a built-in asyncio.WindowsSelectorEventLoopPolicy() fix to prevent ConnectionResetError (WinError 10054) when the server reloads.
-Running the FastAPI BackendTo launch the API server, run:Bashuvicorn main:app --host 0.0.0.0 --port 8000
-  
-You can then access the API at http://localhost:8000/get-plan?topic=your_topic&level=your_level.  
-🐳 Docker SupportA Dockerfile is included for easy containerization.To build and run the Docker
-image:Bashdocker build -t ai-training-agent .
-docker run -p 8000:8000 ai-training-agent
+AI Training Plan & Journey Generator:-
+
+
+This project is a multi-interface application designed to generate structured, real-world learning paths and manage training tracking using Google Gemini AI models via LangChain. It provides both a web UI (Streamlit) and API endpoints (FastAPI) to handle training generations and session tracking.
+Overview:-The AI Training Plan Generator is a robust backend and frontend integration project that leverages the Gemini AI model to curate personalized training curricula based on specific topics and skill levels. By combining the power of FastAPI for high-performance API services, LangChain for seamless LLM integration, and a containerized infrastructure, this project provides a scalable foundation for automated educational content generation.
+
+Project Structure:-
+The repository is organized to separate business logic from interface implementation:
+1.ai_engine.py: Contains the core logic for communicating with the Gemini model using LangChain to generate training content.
+2.main.py: Serves as the FastAPI application entry point, exposing endpoints like /get-plan and /generate-plan to trigger the AI generation process.
+3.api.py: Functions as an additional interface layer for handling API requests.
+4.requirements.txt: Lists all necessary dependencies, including fastapi, uvicorn, langchain, and google-generativeai. 
+5.Dockerfile: Defines the container environment, ensuring the application runs consistently across different operating systems by packaging the Python runtime and dependencies.  
+6.tempCodeRunnerFile.py: A transient file generated during development that manages execution tasks for the interface. 
+
+Key Features:-
+1.Automated Curriculum Design: Dynamically generates detailed study paths for any given subject. 
+2.Scalable API Architecture: Built using FastAPI, enabling asynchronous processing and easy integration into larger systems. 
+3.Simplified Deployment: Full Docker support allows for deployment in any container-compatible environment with a single command.  
+4.Modern AI Integration: Utilizes gemini-2.5-flash to deliver high-quality, relevant training content through the LangChain framework. 
+
+Getting Started:-
+
+Prerequisites:
+1.Python 3.11 or higher installed on your system.
+2.Docker installed (optional, for containerized usage).
+3.A valid Google AI API key. 
+
+Core Architecture and Logic Flow:-
+
+The project is designed to bridge the gap between user input and Large Language Model (LLM) processing through a structured API architecture.
+1.AI Engine (ai_engine.py): This serves as the foundation of your application's logic. It utilizes the ChatGoogleGenerativeAI class from the langchain-google-genai library to interface with the gemini-2.5-flash model. The generate_training_plan function abstracts the prompt engineering process, taking a user-defined topic and level to request structured output from the AI.  
+2.API Layer (main.py & api.py): These files act as the communication hub. By using FastAPI, the project exposes endpoints that allow external applications to interact with the underlying AI engine. When an HTTP request is made to an endpoint like /get-plan, it triggers the backend logic, processes the request through the ai_engine.py script, and returns the AI-generated curriculum as a JSON response. 
+3. Containerization (Dockerfile): This file ensures environmental consistency. It defines a lightweight Python 3.11 environment, installs necessary dependencies from requirements.txt (such as fastapi, uvicorn, and langchain), and automates the execution of the API server. 
+
+The Interaction LifecycleRequest:-
+Initiation: A user sends a GET or POST request to the API with a target topic and level. 
+Processing: The main.py file captures the request and passes the parameters to the generate_training_plan function located in ai_engine.py. 
+LLM Execution: The ai_engine.py script formats these parameters into a prompt for the gemini-2.5-flash model.  
+Response Delivery: The AI generates the content, which is then serialized into a JSON format and returned to the user via the FastAPI endpoint. 
+
+This modular approach ensures that you can update the AI model or expand the API functionality without needing to rewrite the entire codebase. 
+
+
+🚀 FeaturesFast API endpoints: Built with FastAPI for high-performance route handling.Interactive Web UI: A frontend interface powered by Streamlit to generate localized learning levels and granular day-by-day training plans.Multi-language Support: Generate technical plans in English, Hindi, Telugu, Odia, Spanish, or French.
+In-Memory Session Tracking: Basic state-saving mock mechanisms to append user journey steps.Docker Ready: Complete containerization setup for quick deployment.📂 Project Architecture Overviewapp.py: The frontend UI script using Streamlit. Handles user API keys, language toggles, interactive level previews, and full markdown rendering.ai_engine.py: House for foundational LLM initialization and core prompt execution with gemini-2.5-flash.main.py: The system coordinator. Runs a FastAPI backend gateway and dynamically initiates the Streamlit engine sub-process.api.py: Implements a specialized tracking endpoint (/get-custom-practice) storing user session states in an in-memory repository.Dockerfile & requirements.txt: Environment configurations and dependency lockfiles for production alignment.  🛠️ Installation & SetupPrerequisitesPython 3.11+   A Google Gemini API Key (Can be generated via Google AI Studio)Local SetupClone the repository and navigate to the project directory:Bashgit clone <your-repository-url>
+cd <project-folder-name>
+Install the required dependencies:Bashpip install -r requirements.txt
+Environment Variables:Create a .env file in the root directory to store your credentials (optional, as the Streamlit app allows text inputs directly):Code snippetGOOGLE_API_KEY=your_actual_api_key_here
+💻 How to RunMethod 1: Running via Main ControllerExecuting main.py kicks off the main gateway and automatically orchestrates the Streamlit interface:Bashpython main.py
+Method 2: Running the Web App IndividuallyIf you want to view the interactive frontend directly:Bashstreamlit run app.py
+Method 3: Running the Core API EndpointsTo serve backend endpoints individually (such as the main plan fetcher or session tracker):Bashuvicorn ai_engine:app --reload --port 8000
+# OR for the session tracker
+uvicorn api.py:app --reload --port 8001
+🐳 Containerization with DockerYou can package and execute the entire service within an isolated container environment using the provided Dockerfile:  Build the Docker Image:Bashdocker build -t ai-training-agent .
+Run the Container:Bashdocker run -p 8000:8000 ai-training-agent
+📡 API Reference:-
+1. Get Plan (ai_engine.py)URL: /generate-planMethod: POSTQuery Parameters: topic (string), level (string)
+2. Custom Practice Tracking (api.py)URL: /get-custom-practiceMethod: POSTQuery Parameters: user_id (string), topic (string), level (string)
