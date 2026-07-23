@@ -29,10 +29,10 @@ st.set_page_config(
 )
 
 # --- Session State Initialization ---
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
+if "modules_list" not in st.session_state:
+    st.session_state.modules_list = []
+if "current_module_index" not in st.session_state:
+    st.session_state.current_module_index = 0
 if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None
 if "stage" not in st.session_state:
@@ -43,6 +43,7 @@ if "topic" not in st.session_state:
     st.session_state.topic = ""
 if "theme" not in st.session_state:
     st.session_state.theme = "Dark 🌙" 
+
 if "main_notes" not in st.session_state:
     st.session_state.main_notes = None
 if "quiz_book" not in st.session_state:
@@ -57,39 +58,8 @@ if "assessment_score" not in st.session_state:
     st.session_state.assessment_score = 0
 if "assessment_grade" not in st.session_state:
     st.session_state.assessment_grade = ""
-
-# ---------------------------------------------------------
-# 🔴 ଲଗଇନ୍ ସିଷ୍ଟମ୍ (Login System)
-# ---------------------------------------------------------
-if not st.session_state.logged_in:
-    st.title("🔐 Login to TM Knowledge Bot")
-    st.markdown("Please log in or register to continue.")
-    
-    tab1, tab2 = st.tabs(["Login", "Register"])
-    
-    with tab1:
-        l_email = st.text_input("Email ID", key="l_email")
-        l_pass = st.text_input("Password", type="password", key="l_pass")
-        if st.button("Login", use_container_width=True):
-            if db_manager.authenticate_user(l_email, l_pass):
-                st.session_state.logged_in = True
-                st.session_state.user_email = l_email
-                st.rerun()
-            else:
-                st.error("Invalid email or password.")
-                
-    with tab2:
-        r_email = st.text_input("Email ID", key="r_email")
-        r_pass = st.text_input("Password", type="password", key="r_pass")
-        if st.button("Register", use_container_width=True):
-            if r_email and r_pass:
-                if db_manager.register_user(r_email, r_pass):
-                    st.success("Registration successful! Please login from the Login tab.")
-                else:
-                    st.error("Email already exists. Try logging in.")
-            else:
-                st.error("Please fill in both fields.")
-    st.stop()
+if "assessment_percentage" not in st.session_state:
+    st.session_state.assessment_percentage = 0
 
 # ମେନ୍ ଟାଇଟଲ୍ ଅପଡେଟ୍
 st.title("TM Knowledge Bot")
@@ -157,11 +127,10 @@ def create_certificate(user_name, topic):
     """
     return html_content.encode('utf-8')
 
-# --- Auto Email Function (Only Score & Certificate) ---
-def send_completion_email(user_email, score, total, grade, cert_bytes, topic):
-    # ଏଠାରେ ଆପଣଙ୍କର ପ୍ରକୃତ ଇମେଲ୍ ଓ ଆପ୍ ପାସୱାର୍ଡ ଦେବେ
-    sender_email = "your_email@gmail.com" 
-    sender_password = "your_app_password" 
+# --- Auto Email Function ---
+def send_completion_email(user_email, score, percentage, grade, cert_bytes, topic):
+    sender_email = "your_email@gmail.com" # ଆପଣଙ୍କର ଇମେଲ୍ ଦିଅନ୍ତୁ
+    sender_password = "your_app_password" # ଆପଣଙ୍କର ଆପ୍ ପାସୱାର୍ଡ ଦିଅନ୍ତୁ
     
     msg = MIMEMultipart()
     msg['Subject'] = f'Your AI Master Tutor Results & Certificate - {topic}'
@@ -174,7 +143,8 @@ def send_completion_email(user_email, score, total, grade, cert_bytes, topic):
     Congratulations on completing the Masterclass for {topic}!
 
     Here is your Final Scoreboard:
-    Score: {score} out of {total}
+    Score: {score}
+    Percentage: {percentage}%
     Grade: {grade}
 
     Please find attached your Certificate of Completion (Open in browser to Print as PDF).
@@ -184,13 +154,11 @@ def send_completion_email(user_email, score, total, grade, cert_bytes, topic):
     """
     msg.attach(MIMEText(body, 'plain'))
     
-    # Attach Certificate Only
     part_cert = MIMEApplication(cert_bytes, Name=f"{topic}_Certificate.html")
     part_cert['Content-Disposition'] = f'attachment; filename="{topic}_Certificate.html"'
     msg.attach(part_cert)
     
     try:
-        # ଇମେଲ୍ ପଠାଇବା ପାଇଁ ତଳ ୩ ଲାଇନ୍ ରୁ '#' ହଟାଇଦେବେ
         # with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
         #     server.login(sender_email, sender_password)
         #     server.sendmail(sender_email, [user_email], msg.as_string())
@@ -303,11 +271,6 @@ with st.sidebar:
                         st.session_state.topic = ""
                     st.rerun()
 
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.logged_in = False
-        st.session_state.user_email = ""
-        st.rerun()
-
 # --- Main Interface Chat History ---
 if not st.session_state.chat_history and st.session_state.current_session_id is None:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -323,8 +286,9 @@ for msg in st.session_state.chat_history:
     with st.chat_message(role, avatar=avatar_icon):
         st.markdown(msg.content)
 
+
 # ---------------------------------------------------------
-# 🔴 UI Flow (Materials -> Assessment -> Certificate -> Download)
+# 🔴 UI Flow (Materials -> Assessment -> Certificate -> Email)
 # ---------------------------------------------------------
 if st.session_state.stage == "generating_materials":
     with st.spinner("Generating 5-6 pages of Deep Reading Notes and Practice Quiz..."):
@@ -333,7 +297,7 @@ if st.session_state.stage == "generating_materials":
         # Notes prompt
         notes_prompt = f"""
         Create a VERY DEEP, MASSIVE, and COMPREHENSIVE study document for '{st.session_state.topic}' in {selected_language}.
-        This document must be equivalent to 5-6 pages (at least 2000 words).
+        This document must be equivalent to 5-6 pages.
         Include exhaustive history, deep architectural breakdowns, multiple code/real-world examples, advanced concepts, and pitfall analysis.
         Use clear headings, bullet points, and structure.
         """
@@ -354,7 +318,7 @@ elif st.session_state.stage == "materials_ready":
     col_a, col_b = st.columns(2)
     with col_a:
         st.download_button(
-            label="📄 Download 5-6 Page Reading Notes",
+            label="📄 Download Reading Notes (5-6 Pages)",
             data=st.session_state.main_notes,
             file_name=f"{st.session_state.topic}_Notes.md",
             mime="text/markdown",
@@ -378,11 +342,11 @@ elif st.session_state.stage == "generating_assessment":
     with st.spinner("Generating Final Assessment... (This may take a moment)"):
         llm_assess = ChatOllama(model="llama3.2:1b", temperature=0.3)
         
-        # ଟିକେ ସହଜ ପ୍ରମ୍ପ୍ଟ ଦେବା ଯାହାଦ୍ୱାରା ମଡେଲ୍ କନଫ୍ୟୁଜ୍ ହେବନି
+        # PROMPT FIX: 25 ବଦଳରେ 10 କିମ୍ବା 5 ରଖିବା ଛୋଟ ମଡେଲ୍ ପାଇଁ ଭଲ ଅଟେ
         q_prompt = f"""
-        Generate multiple-choice questions about '{st.session_state.topic}' in {selected_language}.
-        Try to generate up to 25 questions.
-        You MUST follow this exact plain text format for every single question:
+        Generate exactly 5 multiple-choice questions about '{st.session_state.topic}' in {selected_language}.
+        You MUST follow this exact plain text format for every single question without fail:
+        
         Q: [Question text]
         A) [Option A]
         B) [Option B]
@@ -392,123 +356,117 @@ elif st.session_state.stage == "generating_assessment":
 
         Do NOT use markdown bolding (like **Q:**). Just plain text.
         """
-        
         resp = llm_assess.invoke(q_prompt)
+        # TEXT CLEANUP FIX: ସବୁ ପ୍ରକାରର ମାର୍କଡାଉନ୍ ଷ୍ଟାର୍ ହଟାଇବା
+        raw_text = resp.content.replace('**', '').replace('*', '').strip()
         
-        # ଯଦି AI ଭୁଲ୍ ରେ Bold କରିଦେଇଥାଏ, ତେବେ ତାକୁ ହଟାଇଦେବା
-        raw_text = resp.content.replace('**', '')
         questions = []
+        # REGEX FIX: ଅଧିକ ସଠିକ୍ ଭାବରେ ପ୍ରଶ୍ନଗୁଡ଼ିକୁ ଅଲଗା କରିବା ପାଇଁ
+        blocks = re.split(r'\n(?=Q\d*:|Question\d*:|Q\s*:|\d+\.)', '\n' + raw_text, flags=re.IGNORECASE)
         
-        # Regex ବ୍ୟବହାର କରି ବିଭିନ୍ନ ପ୍ରକାରର ପ୍ରଶ୍ନ ଫର୍ମାଟ୍ କୁ ଧରିବା (Q:, 1., Q1: ଇତ୍ୟାଦି)
-        blocks = re.split(r'(?:^Q\d*\s*:|^Question\d*\s*:|^\d+\.)', raw_text, flags=re.MULTILINE | re.IGNORECASE)
-        
-        if len(blocks) < 2:
-            blocks = raw_text.split('Q:')
-            
         for block in blocks:
             lines = [line.strip() for line in block.strip().split('\n') if line.strip()]
             if not lines or len(lines) < 3:
                 continue
                 
             q_text = lines[0]
+            # ପ୍ରଶ୍ନରୁ 'Q:' ବା '1.' ହଟାଇଦେବା
+            q_text = re.sub(r'^(?:Q\d*\s*:|Question\d*\s*:|\d+\.\s*)', '', q_text, flags=re.IGNORECASE).strip()
+            
             options = []
             ans = ""
-            
             for line in lines[1:]:
-                # Option ଗୁଡିକୁ ଧରିବା (A), B. ଇତ୍ୟାଦି)
                 if re.match(r'^[A-D][\.\)]', line, re.IGNORECASE):
                     options.append(line)
-                # Answer କୁ ଧରିବା (Ans: A କିମ୍ବା Answer: A)
-                elif re.search(r'(?:Ans|Answer).*?([A-D])', line, re.IGNORECASE):
-                    match = re.search(r'(?:Ans|Answer).*?([A-D])', line, re.IGNORECASE)
+                elif re.search(r'(?:Ans|Answer|Correct).*?([A-D])', line, re.IGNORECASE):
+                    match = re.search(r'(?:Ans|Answer|Correct).*?([A-D])', line, re.IGNORECASE)
                     if match:
                         ans = match.group(1).upper()
-            
-            # ଅତିକମରେ ୨ଟି ଅପ୍ସନ୍ ଏବଂ ଗୋଟିଏ ଉତ୍ତର ଥିଲେ ହିଁ ଗ୍ରହଣ କରିବା
+        
             if len(options) >= 2 and ans:
                 questions.append({'q': q_text, 'options': options, 'ans': ans})
         
-        # ଯଦି ଅତିକମରେ କିଛି ପ୍ରଶ୍ନ ତିଆରି ହୋଇଛି ତେବେ ଆଗକୁ ବଢିବା
         if len(questions) > 0:
             st.session_state.assessment_questions = questions
             st.session_state.stage = "taking_assessment"
             st.rerun()
         else:
-            # ଯଦି ବିଲକୁଲ୍ ଗୋଟେ ବି ପ୍ରଶ୍ନ ପଢିପାରିଲାନି, ତେବେ ଏରର୍ ଦେଖାଇବ
-            pass
-
-elif st.session_state.stage == "taking_assessment":
-    st.markdown("### 📝 Final Assessment (25 Questions)")
-    if not st.session_state.assessment_questions:
-        st.error("Failed to generate questions properly. Please try again.")
-        if st.button("Retry"):
-            st.session_state.stage = "generating_assessment"
-            st.rerun()
-    else:
-        with st.form("assessment_form"):
-            user_answers = {}
-            for i, q in enumerate(st.session_state.assessment_questions):
-                st.markdown(f"**Q{i+1}: {q['q']}**")
-                user_answers[i] = st.radio("Select Answer:", q['options'], key=f"q_{i}", index=None)
-                st.markdown("---")
-            
-            submitted = st.form_submit_button("Submit Assessment")
-            if submitted:
-                score = 0
-                for i, q in enumerate(st.session_state.assessment_questions):
-                    selected = user_answers[i]
-                    if selected and selected.startswith(q['ans']):
-                        score += 1
-                
-                st.session_state.assessment_score = score
-                total = len(st.session_state.assessment_questions)
-                percentage = (score / total) * 100 if total > 0 else 0
-                
-                if percentage >= 90: grade = "O (Outstanding)"
-                elif percentage >= 80: grade = "E (Excellent)"
-                elif percentage >= 70: grade = "A (Very Good)"
-                elif percentage >= 60: grade = "B (Good)"
-                else: grade = "C (Average)"
-                
-                st.session_state.assessment_grade = grade
-                st.session_state.stage = "assessment_completed"
+            st.error("Failed to generate questions in the correct format. Please try again.")
+            # DEBUGGING FIX: ଏରର୍ ଆସିଲେ AI ପ୍ରକୃତରେ କ'ଣ ଲେଖିଥିଲା ତାହା ଦେଖିବାକୁ ମିଳିବ
+            with st.expander("🔍 Show AI Raw Output (For Debugging)"):
+                st.text(raw_text)
+            if st.button("Retry"):
                 st.rerun()
 
+elif st.session_state.stage == "taking_assessment":
+    st.markdown("### 📝 Final Assessment")
+    with st.form("assessment_form"):
+        user_answers = {}
+        for i, q in enumerate(st.session_state.assessment_questions):
+            st.markdown(f"**Q{i+1}: {q['q']}**")
+            user_answers[i] = st.radio("Select Answer:", q['options'], key=f"q_{i}", index=None)
+            st.markdown("---")
+        
+        submitted = st.form_submit_button("Submit Assessment")
+        if submitted:
+            score = 0
+            for i, q in enumerate(st.session_state.assessment_questions):
+                selected = user_answers[i]
+                if selected and selected.startswith(q['ans']):
+                    score += 1
+            
+            total = len(st.session_state.assessment_questions)
+            percentage = (score / total) * 100 if total > 0 else 0
+            
+            if percentage >= 90: grade = "O (Outstanding)"
+            elif percentage >= 80: grade = "E (Excellent)"
+            elif percentage >= 70: grade = "A (Very Good)"
+            elif percentage >= 60: grade = "B (Good)"
+            else: grade = "C (Average)"
+            
+            st.session_state.assessment_score = f"{score}/{total}"
+            st.session_state.assessment_percentage = round(percentage, 2)
+            st.session_state.assessment_grade = grade
+            st.session_state.stage = "assessment_completed"
+            st.rerun()
+
 elif st.session_state.stage == "assessment_completed":
-    total = len(st.session_state.assessment_questions)
     st.markdown("### 🏆 Final Scoreboard")
-    col_score, col_grade = st.columns(2)
-    with col_score:
-        st.info(f"### Score: {st.session_state.assessment_score} / {total}")
-    with col_grade:
-        st.success(f"### Grade: {st.session_state.assessment_grade}")
+    
+    # ପ୍ରଦର୍ଶନ Scoreboard
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info(f"### Score\n**{st.session_state.assessment_score}**")
+    with col2:
+        st.warning(f"### Percentage\n**{st.session_state.assessment_percentage}%**")
+    with col3:
+        st.success(f"### Grade\n**{st.session_state.assessment_grade}**")
     
     st.markdown("---")
     st.markdown("### 🎓 Claim Your Certificate")
     cert_name = st.text_input("Enter your name for the Certificate:")
+    user_email_input = st.text_input("Enter your Email to receive the Certificate:")
     
     if st.button("Generate & Send Certificate", use_container_width=True):
-        if cert_name.strip() == "":
-            st.error("⚠️ ଦୟାକରି ସାର୍ଟିଫିକେଟ୍ ପାଇଁ ପ୍ରଥମେ ନିଜର ନାମ ଲେଖନ୍ତୁ!")
+        if cert_name.strip() == "" or user_email_input.strip() == "":
+            st.error("⚠️ ଦୟାକରି ସାର୍ଟିଫିକେଟ୍ ପାଇଁ ନିଜର ନାମ ଏବଂ ଇମେଲ୍ ଲେଖନ୍ତୁ!")
         else:
             with st.spinner("Generating Certificate and Sending Email..."):
-                # Generate Certificate
                 st.session_state.certificate = create_certificate(cert_name, st.session_state.topic)
                 
-                # Send Email (Only Cert & Score)
                 email_sent = send_completion_email(
-                    st.session_state.user_email,
+                    user_email_input,
                     st.session_state.assessment_score,
-                    total,
+                    st.session_state.assessment_percentage,
                     st.session_state.assessment_grade,
                     st.session_state.certificate,
                     st.session_state.topic
                 )
                 
                 if email_sent:
-                    st.success(f"✅ Your Score and Certificate have been automatically emailed to {st.session_state.user_email}!")
+                    st.success(f"✅ Your Score and Certificate have been successfully emailed to {user_email_input}!")
                 else:
-                    st.warning("⚠️ Email delivery is set up but requires valid SMTP credentials in the code.")
+                    st.warning("⚠️ Email delivery requires valid SMTP credentials in the code. You can download the certificate below.")
                 
                 st.session_state.stage = "certificate_ready"
                 st.rerun()
@@ -523,15 +481,15 @@ elif st.session_state.stage == "certificate_ready":
         use_container_width=True
     )
 
+
 # --- User Input Chat Logic ---
-# UI ଷ୍ଟେଜ୍ ଚାଲିଥିବା ବେଳେ ଚାଟ୍ ଇନପୁଟ୍ ବନ୍ଦ ରହିବ
 hidden_stages = ["generating_materials", "materials_ready", "generating_assessment", "taking_assessment", "assessment_completed", "certificate_ready"]
 
 if st.session_state.stage not in hidden_stages:
     user_input = st.chat_input("Ask anything or enter your response...")
 
     if user_input:
-        llm = ChatOllama(model="llama3.2:1b", temperature=0.4)
+        llm = ChatOllama(model="llama3.2:1b", temperature=0.3, num_predict=400)
 
         if st.session_state.current_session_id is None:
             st.session_state.current_session_id = db_manager.create_new_session(topic=user_input)
@@ -569,7 +527,16 @@ if st.session_state.stage not in hidden_stages:
                             prompt = f"""
                             The user wants to learn about: '{user_input}'.
                             {persona_instruction}
-                            YOUR TASK: Introduce the topic and show Beginner, Intermediate, and Advanced levels in a Markdown table.
+                            YOUR TASK: Introduce the topic and show the difficulty levels.
+                            You MUST create a Markdown table with EXACTLY THREE ROWS. Do NOT duplicate levels.
+                            Format EXACTLY like this:
+                            
+                            | Level | Description |
+                            |---|---|
+                            | Beginner Level | [2 sentences here] |
+                            | Intermediate Level | [2 sentences here] |
+                            | Advanced Level | [2 sentences here] |
+                            
                             End your response EXACTLY with a new line saying: "Which level or levels would you like to study?" Add the exact tag [LEARN] at the end.
                             """
                             response = llm.invoke(prompt)
@@ -584,41 +551,120 @@ if st.session_state.stage not in hidden_stages:
                             prompt = f"""
                             Topic: '{st.session_state.topic}'. Levels chosen: '{user_input}'.
                             {persona_instruction}
-                            YOUR TASK: Create a detailed Study Schedule in a Markdown table format.
-                            End EXACTLY with: "Please reply 'Start' whenever you are ready to begin the lesson."
+                            YOUR TASK:
+                            Create a structured Learning Plan divided into specific MODULES.
+                            For each module, provide a specific Time Slot (e.g., 10:00 AM - 11:30 AM), Duration (e.g., 1.5 Hours), Topics to cover, and a short Summary.
+                            You MUST format your response STRICTLY exactly like this pattern for each module:
+
+                            MODULE: [Name of the Module]
+                            SCHEDULE: [Day X, Start Time - End Time]
+                            DURATION: [X Hours]
+                            TOPICS: [Comma-separated list of 3-4 topics]
+                            SUMMARY: [1-2 sentences summarizing what will be learned]
+
+                            Generate at least 3 to 4 modules. Do NOT add any extra introductory text.
                             """
                             response = llm.invoke(prompt)
-                            st.markdown(response.content)
-                            st.session_state.stage = "wait_for_start"
+                            raw_plan = response.content
+                            
+                            import re
+                            modules = []
+                            # ନୂଆ Regex ଯାହା Schedule, Duration, ଏବଂ Topics କୁ ମଧ୍ୟ ବାହାର କରିବ
+                            pattern = r"MODULE:\s*(.*?)\nSCHEDULE:\s*(.*?)\nDURATION:\s*(.*?)\nTOPICS:\s*(.*?)\nSUMMARY:\s*(.*?)(?=\nMODULE:|$)"
+                            matches = re.finditer(pattern, raw_plan, re.DOTALL | re.IGNORECASE)
+                            for match in matches:
+                                modules.append({
+                                    "name": match.group(1).strip(),
+                                    "schedule": match.group(2).strip(),
+                                    "duration": match.group(3).strip(),
+                                    "topics": match.group(4).strip(),
+                                    "summary": match.group(5).strip()
+                                })
+                            
+                            if len(modules) > 0:
+                                st.session_state.modules_list = modules
+                                st.session_state.current_module_index = 0
+                                
+                                reply_text = "### 📅 Your Study Plan & Timeline\n\n"
+                                for i, mod in enumerate(modules):
+                                    reply_text += f"**Module {i+1}: {mod['name']}**\n"
+                                    reply_text += f"⏰ *Time:* {mod['schedule']} ({mod['duration']})\n"
+                                    reply_text += f"📚 *Topics:* {mod['topics']}\n"
+                                    reply_text += f"📝 *Summary:* {mod['summary']}\n\n"
+                                reply_text += "---\n*Please reply **'Start'** whenever you are ready to auto-trigger the first learning module!*"
+                                
+                                response.content = reply_text
+                                st.markdown(reply_text)
+                                st.session_state.stage = "wait_for_start"
+                            else:
+                                st.markdown(raw_plan + "\n\n*Please reply **'Start'** whenever you are ready to begin.*")
+                                st.session_state.stage = "wait_for_start"
 
                         elif st.session_state.stage == "wait_for_start":
                             if any(word in user_input.lower() for word in ["start", "yes", "ok", "ready", "ହଁ", "ଆରମ୍ଭ"]):
+                                st.session_state.current_module_index = 0
+                                st.session_state.stage = "teaching_module"
+                                
+                                # AUTO-TRIGGER: ପ୍ରଥମ ମଡ୍ୟୁଲ୍ ର ପାଠପଢ଼ା ଆପେ ଆପେ ଆରମ୍ଭ ହେବ
+                                current_mod = st.session_state.modules_list[0] if st.session_state.modules_list else {"name": "Introduction"}
+                                
                                 prompt = f"""
-                                Topic: '{st.session_state.topic}'
-                                {persona_instruction}
-                                
-                                YOUR TASK:
-                                You are writing a comprehensive, university-level textbook chapter on this topic. 
-                                You MUST provide a MASSIVE, EXHAUSTIVE, and EXTREMELY DEEP explanation. 
-                                Do NOT summarize. Expand on EVERY single point as much as possible.
-                                
-                                Structure your massive response strictly as follows:
-                                1. **Deep Introduction & History**
-                                2. **Exhaustive Breakdown**
-                                3. **Real-World Scenarios**
-                                4. **Extensive Code Blocks** (if technical)
-                                5. **Advanced Concepts & Best Practices**
-                                6. **Common Pitfalls**
-                                
-                                CRITICAL: Your output must be very long and detailed. Use bullet points, bold text, and proper line breaks. 
-                                End your massive explanation EXACTLY with a new line saying: "Please reply 'Materials' to download your 5-6 page reading notes and practice quiz."
-                                """
+                                    Topic: '{st.session_state.topic}'
+                                    Current Module to Teach: '{current_mod['name']}'
+                                    {persona_instruction}
+                                    
+                                    YOUR TASK:
+                                    Provide a clear, concise, and easy-to-understand explanation ONLY for this specific module. 
+                                    Keep your explanation under 300 words. Include one short code example if applicable.
+                                    Do not write an exhaustive textbook, just a short summary of the module.
+                                    
+                                    End EXACTLY with a new line saying: 
+                                    "Type **'Next'** to move to the next module in your timeline."
+                                    """
                                 response = llm.invoke(prompt)
-                                st.session_state.stage = "wait_for_materials_trigger"
+                                st.markdown(response.content)
                             else:
-                                prompt = f"Politely tell the user to reply 'Start' when they are ready to read the full explanation. {persona_instruction}"
+                                prompt = f"Politely tell the user to reply 'Start' when they are ready. {persona_instruction}"
                                 response = llm.invoke(prompt)
-                            st.markdown(response.content)
+                                st.markdown(response.content)
+
+                        # ଏହା ହେଉଛି ନୂଆ Teaching Stage ଯାହା ଗୋଟିଏ ପରେ ଗୋଟିଏ ମଡ୍ୟୁଲ୍ ଟ୍ରିଗର୍ କରିବ
+                        elif st.session_state.stage == "teaching_module":
+                            if "next" in user_input.lower():
+                                st.session_state.current_module_index += 1
+                                if st.session_state.current_module_index < len(st.session_state.modules_list):
+                                    # AUTO-TRIGGER: ପରବର୍ତ୍ତୀ ମଡ୍ୟୁଲ୍ ଆସିବ
+                                    current_mod = st.session_state.modules_list[st.session_state.current_module_index]
+                                    prompt = f"""
+                                    Topic: '{st.session_state.topic}'
+                                    Current Module to Teach: '{current_mod['name']}'
+                                    {persona_instruction}
+                                    
+                                    YOUR TASK:
+                                    Provide a DEEP explanation ONLY for this specific module.
+                                    End EXACTLY with: "Type **'Next'** to move to the next module in your timeline."
+                                    """
+                                    response = llm.invoke(prompt)
+                                    st.markdown(response.content)
+                                else:
+                                    # ସବୁ ମଡ୍ୟୁଲ୍ ସରିଗଲେ Materials ଷ୍ଟେଜ୍ କୁ ଯିବ
+                                    reply_text = "🎉 **Congratulations! You have completed all the modules in your timeline.**\n\nPlease reply **'Materials'** to generate your Deep Reading Notes and Practice Quiz."
+                                    
+                                    # 🔴 FIX: 'response' କୁ ଏକ AIMessage ଅବଜେକ୍ଟ ଭାବରେ ଡିଫାଇନ୍ କରାଗଲା
+                                    response = AIMessage(content=reply_text)
+                                    
+                                    st.markdown(reply_text)
+                                    st.session_state.stage = "wait_for_materials_trigger"
+                                    
+                            elif any(word in user_input.lower() for word in ["material", "materials", "notes", "quiz"]):
+                                st.session_state.stage = "generating_materials"
+                                st.rerun()
+                                
+                            else:
+                                # ଯଦି ୟୁଜର୍ ମଝିରେ କିଛି ପ୍ରଶ୍ନ ପଚାରନ୍ତି ତେବେ ବଟ୍ ଉତ୍ତର ଦେଇ ପୁଣି Next ମାରିବାକୁ କହିବ
+                                prompt = f"Answer the user's question briefly: '{user_input}'. Then remind them to type 'Next' to trigger the next module. {persona_instruction}"
+                                response = llm.invoke(prompt)
+                                st.markdown(response.content)
 
                         elif st.session_state.stage == "wait_for_materials_trigger":
                             if any(word in user_input.lower() for word in ["material", "materials", "notes", "quiz", "yes", "ok", "ready", "ହଁ"]):

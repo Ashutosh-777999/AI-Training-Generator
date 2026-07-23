@@ -7,6 +7,7 @@ DB_NAME = "chat_history.db"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    # ପୁରୁଣା ଟେବୁଲ୍
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             session_id TEXT PRIMARY KEY,
@@ -24,8 +25,37 @@ def init_db():
             FOREIGN KEY(session_id) REFERENCES sessions(session_id)
         )
     ''')
+    # ନୂଆ ୟୁଜର୍ ଲଗଇନ୍ ଟେବୁଲ୍ (Login System)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            password TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
+
+# ନୂଆ ଫଙ୍କସନ୍: Register 
+def register_user(email, password):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email, password))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+# ନୂଆ ଫଙ୍କସନ୍: Authenticate (Login)
+def authenticate_user(email, password):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
+    user = cursor.fetchone()
+    conn.close()
+    return user is not None
 
 def create_new_session(topic="New Learning Path"):
     session_id = str(uuid.uuid4())

@@ -1,7 +1,9 @@
 import os
 import sys
 from fastapi import FastAPI
-
+import ai_engine
+from email_sender import send_certificate_and_score
+# Force Python to find files in the same directory
 # Force Python to find files in the same directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
